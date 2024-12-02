@@ -44,18 +44,24 @@ def load_model(model_dir=MODEL_DIR):
 
 def generate_text(description, model_dir=MODEL_DIR):
     """
-    Generate Pokémon details (simulated) based on the description.
+    Generate Pokémon details dynamically based on the description and model configuration.
     """
     config, tokenizer = load_model(model_dir)  # Ensure model is loaded
 
-    # Placeholder response for now
+    # Example of dynamic response based on description and model configuration
+    types = config.get("types", ["Normal"])
+    stats = {
+        "HP": tokenizer.get("base_hp", 50) + len(description),
+        "Attack": tokenizer.get("base_attack", 50) + len(description) % 10,
+        "Defense": tokenizer.get("base_defense", 50) + len(description) % 5,
+        "Speed": tokenizer.get("base_speed", 50) + len(description) % 20,
+    }
+    
+    # Example Pokémon name generation based on description
+    name = f"{description.split()[0].capitalize()}-mon" if description.strip() else "Mystery-mon"
+
     return {
-        "Name": "Simula-mon",
-        "Type": ["Psychic", "Electric"],
-        "Stats": {
-            "HP": 90,
-            "Attack": 80,
-            "Defense": 75,
-            "Speed": 110,
-        },
+        "Name": name,
+        "Type": types[:2],  # Select up to 2 types
+        "Stats": stats,
     }
