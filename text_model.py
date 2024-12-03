@@ -1,61 +1,89 @@
-import os
-import zipfile
-import json
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import random
 
-# Directory where the model files are stored or will be extracted
+# Directory where the model files are stored
 MODEL_DIR = "./trained_model5"
-ZIP_FILE = "trained_model5.zip"  # Name of the zipped model file
 
-def extract_model(zip_file=ZIP_FILE, extract_dir=MODEL_DIR):
-    """
-    Extract the model zip file if the directory does not exist.
-    """
-    if not os.path.exists(extract_dir):
-        print("Extracting model files...")
-        with zipfile.ZipFile(zip_file, "r") as zip_ref:
-            zip_ref.extractall(extract_dir)
-        print("Extraction complete.")
-    else:
-        print("Model files already extracted.")
+# Load the tokenizer and model
+print("Loading tokenizer and model...")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_DIR)
 
-def load_model(model_dir=MODEL_DIR):
-    """
-    Load the configuration and tokenizer from the model directory.
-    """
-    # Ensure the model is extracted
-    extract_model()
+# Define the valid Pokémon types
+valid_types = [
+    "Normal", "Fire", "Water", "Grass", "Electric", "Ice", "Fighting",
+    "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost",
+    "Dark", "Dragon", "Steel", "Fairy"
+]
 
-    # Load the model configuration
-    config_path = os.path.join(model_dir, "config.json")
-    tokenizer_path = os.path.join(model_dir, "tokenizer.json")
+# Function to enforce valid Pokémon types
+def enforce_valid_types(generated_output):
+    # Handle Primary Type
+    if "Type:" in generated_output:
+        primary_type_start = generated_output.find("Type:") + 5
+        primary_type_end = generated_output.find(";", primary_type_start)
+        primary_type = generated_output[primary_type_start:primary_type_end].strip()
 
-    if not os.path.exists(config_path) or not os.path.exists(tokenizer_path):
-        raise FileNotFoundError("Essential model files are missing.")
+        if primary_type not in valid_types:
+            random_primary_type = random.choice(valid_types)
+            generated_output = generated_output.replace(f"Type: {primary_type}", f"Type: {random_primary_type}")
+        else:
+            random_primary_type = primary_type  # Keep the original if valid
 
-    with open(config_path, "r") as config_file:
-        config = json.load(config_file)
-    print("Loaded model configuration:", config)
+    # Handle Secondary Type
+    if "Secondary Type:" in generated_output:
+        secondary_type_start = generated_output.find("Secondary Type:") + 15
+        secondary_type_end = generated_output.find(";", secondary_type_start)
+        secondary_type = generated_output[secondary_type_start:secondary_type_end].strip()
 
-    with open(tokenizer_path, "r") as tokenizer_file:
-        tokenizer = json.load(tokenizer_file)
-    print("Loaded tokenizer configuration.")
-    
-    return config, tokenizer
+        if secondary_type not in valid_types and secondary_type != "None":
+            valid_secondary_types = [t for t in valid_types if t != random_primary_type]
+            random_secondary_type = random.choice(valid_secondary_types + ["None"])
+            generated_output = generated_output.replace(
+                f"Secondary Type: {secondary_type}", 
+                f"Secondary Type: {random_secondary_type}"
+            )
+    return generated_output
 
-def generate_text(description, model_dir=MODEL_DIR):
-    """
-    Generate Pokémon details (simulated) based on the description.
-    """
-    config, tokenizer = load_model(model_dir)  # Ensure model is loaded
+# Function to enrich input for less detailed descriptions
+def enrich_input(input_text):
+    if len(input_text.split()) < 5:
+        input_text += " with unique abilities and glowing features."
+    return input_text
 
-    # Placeholder response for now
-    return {
-        "Name": "Simula-mon",
-        "Type": ["Psychic", "Electric"],
-        "Stats": {
-            "HP": 90,
-            "Attack": 80,
-            "Defense": 75,
-            "Speed": 110,
-        },
-    }
+# Function to test the model with constrained types
+def generate_with_constraints(input_text):
+    input_text = enrich_input(input_text)  # Enrich input if needed
+    print(f"Input Text (Enriched): {input_text}")
+
+    # Tokenize the input text
+    inputs = tokenizer(
+        input_text,
+        return_tensors="pt",
+        max_length=64,
+        truncation=True,
+        padding="max_length"
+    )
+
+    # Generate outputs using temperature sampling
+    outputs = model.generate(
+        inputs["input_ids"],
+        max_length=64,
+        num_return_sequences=3,  # Generate 3 diverse outputs
+        temperature=0.9,  # Higher temperature for more randomness
+        top_k=10,  # Sample from top 10 tokens
+        top_p=0.7,  # Nucleus sampling for diversity
+        do_sample=True,  # Enable sampling
+        repetition_penalty=2.0  # Penalize repetitive tokens
+    )
+
+    # Decode and enforce valid types in the generated outputs
+    decoded_outputs = [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+    constrained_outputs = [enforce_valid_types(output) for output in decoded_outputs]
+    return constrained_outputs
+
+# Example usage
+if __name__ == "__main__":
+    example_input = "A spiky red Pokémon with bright eyes."
+    outputs = generate_with_constraints(example_input)
+    print("Generated Outputs:", outputs)
