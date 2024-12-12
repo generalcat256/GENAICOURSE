@@ -11,6 +11,7 @@ Our LORA (Low-Rank Adaptation) models can be run on any platform that supports L
 ### Datasets
 
 - [Pokemon Images Dataset on Kaggle](https://www.kaggle.com/datasets/kvpratama/pokemon-images-dataset)
+- [Pokemon stats Dataset on Kaggle](https://www.kaggle.com/datasets/cristobalmitchell/pokedex)
 
 ---
 
