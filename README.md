@@ -2,10 +2,6 @@
 
 ---
 
-## Getting Started
-
----
-
 ### Using the LORAs
 
 Our LORA (Low-Rank Adaptation) models can be run on any platform that supports LORAs, such as the [Automatic1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui). Simply integrate the provided files and start generating Pokémon-inspired content.
